@@ -1,1 +1,34 @@
-<head></head>
+<!DOCTYPE html>
+
+<html lang="en">
+<head> <title>Triggering Improvement</title>
+        
+ <style>
+ h1 {text-align: center}
+ p {text-align: center;}
+ </style>       
+        
+</head>
+<body>
+    <h1>Reason For Creation</h1>
+    <h2>Kegan Johnson</h2>
+    <p>
+        I have taken a route to pursue software development that may others
+        have taken. After conversing with mentors, I have compiled
+        techniques to assist in proper practice and semi-immersion. 
+    </p>
+    <main>
+        
+    </main>
+    <section>
+        <h2>H2 Header</h2>
+    </section>
+    <style></style>
+</body>
+
+
+
+
+
+
+</html>

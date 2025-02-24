@@ -1,2 +1,3 @@
 def main():
     print("This is a line")
+    print("This is another line")
