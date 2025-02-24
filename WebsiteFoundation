@@ -2,7 +2,7 @@
 
 <html lang="en">
 <head> <title>Triggering Improvement</title>
-        <h2>Kegan Johnson</h2>
+        
  <style>
  h1 {text-align: center}
  p {text-align: center;}
@@ -11,6 +11,7 @@
 </head>
 <body>
     <h1>Reason For Creation</h1>
+    <h2>Kegan Johnson</h2>
     <p>
         I have taken a route to pursue software development that may others
         have taken. After conversing with mentors, I have compiled
@@ -24,15 +25,6 @@
     </section>
     <style></style>
 </body>
-
-
-
-
-
-
-
-
-
 
 
 
