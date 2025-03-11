@@ -1,4 +1,0 @@
-function starter_log(strParam){
-    console.log(strParam)
-}
-console.log()
