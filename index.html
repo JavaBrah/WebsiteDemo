@@ -4,14 +4,17 @@
     <title>Triggering Improvement</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
-        
+    <link rel="stylesheet" href="styles.css">
+    <script src="index.js"></script>
+
 </head>
 <body>
     <header> 
         <h1>Reason For Creation</h1>
     </header>
-   
-    <h2>Kegan Johnson</h2>
+   <div class="personal_banner">
+       <img src="imageassets/github-header-image.png" alt="Kegan Johnson" width="50%" height="200">
+   </div>
     
     <section>
         <p>
@@ -19,23 +22,32 @@
             have taken. After conversing with mentors, I have compiled
             techniques to assist in proper practice and semi-immersion. 
         </p>
+    </section>
+    <section>
+        
         <form id="user-form">
-            <label for="First-Name">Please Enter First Name</label>
-            <input id="First-Name" type="text" placeholder="First Name" size="20" required/><br>
+            <div>
+                <label for="First-Name">Please Enter First Name</label>
+                <input id="First-Name" type="text" placeholder="First Name" size="20" required/><br>
+            </div>
+            <div>
+                <label for="Last-Name">Please Enter Last Name</label>
+                <input id="Last-Name" type="text" placeholder="Last Name" size="20" required/><br>          
+            </div>
+            <div>
+                <label for="visit-reason">What is the reason for the visit?:</label> 
 
-            <label for="Last-Name">Please Enter Last Name</label>
-            <input id="Last-Name" type="text" placeholder="Last Name" size="20" required/><br>
+                <input id="visit-reason" type="text" placeholder="Algorithm Practice" required/><br>            </div>
 
-            <label for="visit-reason">What is the reason for the visit?:</label> 
-            <input id="visit-reason" type="text" placeholder="Algorithm Practice" required/><br>
-
-            <button type="submit">Submit</button>
+            <div>
+                <button type="submit">Submit</button>
+            </div>
         </form>
-
         <!-- Placeholder for greeting message -->
+
         <p id="greeting-message" style="text-align:center; font-size: 18px; font-weight: bold; margin-top: 20px;"></p>
     </section>
 
-    <script src="index.js"></script>
+    
 </body>
 </html>

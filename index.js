@@ -1,4 +1,5 @@
 // Ensure the script runs after the DOM is fully loaded
+
 document.addEventListener("DOMContentLoaded", function () {
     document.getElementById("user-form").addEventListener("submit", function(event) {
         event.preventDefault(); // Prevent the default form submission
@@ -13,6 +14,7 @@ document.addEventListener("DOMContentLoaded", function () {
             alert("Please fill in all fields.");
             return;
         }
+        
 
         // Display greeting message on the page
         greeting(personFirstName, personLastName, visitReason);

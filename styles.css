@@ -1,3 +1,27 @@
 body {
-    background-color: 	#404040;
+    background-color: 	#353232;
+    -webkit-text-fill-color: rgb(19, 180, 19);
+}
+input {
+    background-color: rgb(11, 12, 12);
+    padding: 0px;
+}
+label {
+    padding: 1px;
+}
+div {
+    padding: 2px;
+}
+section {
+    padding: 5px;
+}
+
+h1 {
+    text-align: center;
+}
+h2 {
+    text-align: center;
+}
+.personal_banner{
+    text-align: center;
 }
