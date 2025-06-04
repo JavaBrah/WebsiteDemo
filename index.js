@@ -31,3 +31,4 @@ function greeting(firstName, lastName, visitReason) {
     // Update the paragraph with the greeting message
     messageContainer.textContent = message;
 }
+

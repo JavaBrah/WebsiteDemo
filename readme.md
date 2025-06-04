@@ -11,4 +11,3 @@ cp <source> <destination>= copies a file from directory to another
 mv <fileName> <destination> = moves a file from one location to another
 rm <nameOfFile> = removes file
 rm -r <nameofDirectory> = removes folder and everything in it (-rf removes it forcefully)
-su
