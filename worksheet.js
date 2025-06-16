@@ -62,8 +62,11 @@ console.log(fibonacci(7))
 
 
 function globalLinearSearch(item, array){
+    
     let indexListForItem = [];
+  
     for (let i = 0; i < array.length; i++){
+
         if (item == array[i]){
             indexListForItem.push(i)
         }
@@ -75,3 +78,6 @@ const array = ['a', 'b', 'c', 'b', 'b', 'd']
 const item = 'b'
 
 console.log(globalLinearSearch(item, array));
+
+
+

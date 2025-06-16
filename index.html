@@ -4,26 +4,87 @@
     <title>Triggering Improvement</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="./styles.css">
     <script src="index.js"></script>
 
 </head>
 <body>
-    <header> 
-        <h1>Reason For Creation</h1>
-    </header>
-   <div class="personal_banner">
-       <img src="imageassets/github-header-image.png" alt="Kegan Johnson" width="50%" height="200">
-   </div>
-    
-    <section>
+    <section id="Home">
+        <header class="header" id="header"> 
+            <h1>BEHOLD!</h1>
+            <h2>my webpage</h2>
+            <div class="personal_banner">
+                <img src="imageassets/github-header-image.png" alt="Kegan Johnson" width="50%" height="200">
+            </div>
+            <nav>
+                <ul>
+                    <li><a href="#Home">Home</a></li>
+                    <li><a href="#Bio">Bio</a></li>
+                    <li><a href="#Todo List">Todo List</a></li>
+                    <li><a href="#Progress Update">Progress Update</a></li>
+                    <li><a href="#Comment">Leave a Comment</a></li>
+                </ul>
+            </nav>
+        </header>
+    </section>
+  
+
+    <section id="Bio">
         <p>
-            I have taken a route to pursue software development that many others
-            have taken. After conversing with mentors, I have compiled
-            techniques to assist in proper practice and semi-immersion. 
+            I have undertaker to pursue software development that many others
+            have undertaker.
+            <br />
+            <br />
+            Welcome to the backwoods webpage that appears to have been created by
+            a three legged frog. 
+            <br />
+            <br />
+            Please leave critics in the form below.  
         </p>
     </section>
-    <section>
+
+    <section id="Todo">
+        
+        <h2>Todo List</h2>
+        <!--create multiple divs shortcuts: div#box$*3/ div.card*3-->
+        <div id="box1">scrap for photos</div>
+        <div id="box2">structure this page effectively</div>
+        <div id="box3">Finger out CSS</div>
+        <br />
+        <div class="card">fdsfsdf</div>
+        <div class="card">sfsahsajfgjkgdlkgkg</div>
+        <div class="card">jghjgjhgjfgjg</div>
+
+    </section>
+    <section id="Progress">
+        <!--create nested divs shortcuts: div>div*3-->
+        <div>
+            <div></div>
+            <div></div>
+            <div></div>
+        </div>
+        <!--create nested divs shortcuts: div>div.card#box$*3-->
+
+        <div>
+            <div class="card" id="box4">
+                <p>
+                    fsdfsfsfs
+                </p>
+            </div>
+            <div class="card" id="box5">
+                <p>
+                    sdfsahgsgsfsfsf
+                </p>
+            </div>
+            <div class="card" id="box6">
+                <p>
+                    dsfasgosjodjjfs
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section id="Comment">
         
         <form id="user-form">
             <div>
