@@ -1,20 +1,12 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
-import HomeBanner from './components/HomeBanner';
-import NavBar from './components/NavBar';
+import NavBar from "../components/NavBar";
+import HomeBanner from "../components/HomeBanner";
 
 
-
-function App() {
-  const [count, setCount] = useState(0);
-
-
-  return (
+function Home(){
     <>
       <NavBar/>
       <HomeBanner/>
+
 
       <div>
         <a href="https://vite.dev" target="_blank">
@@ -38,7 +30,6 @@ function App() {
       </p>
       
     </>
-  )
-}
 
-export default App
+}
+export default Home;
