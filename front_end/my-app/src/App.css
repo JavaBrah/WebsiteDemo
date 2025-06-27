@@ -54,8 +54,7 @@
 
 /* Common style for left, center, right */
 .navbarLeft,
-.navbarCenter,
-.navbarRight {
+.navbarCenter {
   display: flex;
   align-items: center;
 }
@@ -63,12 +62,10 @@
   margin-left: auto;
   margin-right: auto;
   padding-left: 10vw;
-  padding-right: 24vw;
+  padding-right: 30vw;
 }
 
-.navbarRight {
-  margin-left: auto;
-}
+
 
 .navbarLeft{
   margin-right: auto;

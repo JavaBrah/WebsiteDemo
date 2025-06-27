@@ -4,6 +4,7 @@ import viteLogo from '/vite.svg'
 import './App.css'
 import HomeBanner from './components/HomeBanner';
 import NavBar from './components/NavBar';
+import AboutPage from './pages/about';
 
 
 function App() {
@@ -33,6 +34,7 @@ function App() {
       <p className="read-the-docs">
         Click on the Vite and React logos to learn more
       </p>
+      <AboutPage/>
     </>
   )
 }

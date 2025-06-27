@@ -16,9 +16,7 @@ function NavBar(){
                 </ul>
                     
                 </div>
-                <div className="navbarRight">
-                    <p>Other Logo</p>
-                </div>
+        
                 
             </nav>
         </div>
