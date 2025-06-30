@@ -101,3 +101,20 @@
   list-style: none;
   padding-left: 0;
 }
+
+.contact-card{
+  align-items: center;     /* Center horizontally */
+  justify-content: center; /* Center vertically */
+  text-align: center; 
+  background-color: hsl(200, 48%, 41%);
+  max-width: 30%;
+  border: none;
+  box-shadow: 10px 5px 5px hsl(240, 66%, 52%);
+  padding: 5px;
+  margin: 10px;
+  border-radius: 10%;
+  display: inline-block;
+}
+.contact-card ul{
+  align-items: center;
+}
