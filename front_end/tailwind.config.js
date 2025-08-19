@@ -115,7 +115,8 @@ export default {
     },
   },
   plugins: [
-    require('@tailwindcss/forms'),
-    require('@tailwindcss/typography'),
+    // Remove the plugin requirements since they're not installed
+    // If you want to use them later, install with:
+    // npm install @tailwindcss/forms @tailwindcss/typography
   ],
 }
