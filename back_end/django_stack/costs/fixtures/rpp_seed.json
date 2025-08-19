@@ -1,7 +1,0 @@
-[
-  {"model": "costs.rpp", "pk": 1, "fields": {"state": "ME", "index_all_items": "98.00"}},
-  {"model": "costs.rpp", "pk": 2, "fields": {"state": "MA", "index_all_items": "108.00"}},
-  {"model": "costs.rpp", "pk": 3, "fields": {"state": "NC", "index_all_items": "93.50"}},
-  {"model": "costs.rpp", "pk": 4, "fields": {"state": "FL", "index_all_items": "100.50"}},
-  {"model": "costs.rpp", "pk": 5, "fields": {"state": "TX", "index_all_items": "96.00"}}
-]
