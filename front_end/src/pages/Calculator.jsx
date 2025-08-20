@@ -18,7 +18,7 @@ import {
   TrendingDown,
   AlertCircle,
   Info,
-  AlertTriangle  // Changed from ExclamationTriangle
+  AlertTriangle
 } from 'lucide-react'
 
 import { calculationsAPI, statesAPI } from '../utils/api'
@@ -60,11 +60,28 @@ const Calculator = () => {
   // Watch form values for real-time calculations
   const watchedValues = watch()
 
-  // Fetch states data with error handling
+  // Fetch states data with enhanced error handling
   const { data: states, isLoading: statesLoading, error: statesError } = useQuery({
     queryKey: ['states'],
     queryFn: () => statesAPI.getAll(),
-    select: (response) => response.data,
+    select: (response) => {
+      console.log('Raw API response:', response)
+      console.log('Response data:', response.data)
+      console.log('Is response.data an array?', Array.isArray(response.data))
+      
+      // Handle different API response formats
+      if (Array.isArray(response.data)) {
+        return response.data
+      } else if (response.data && response.data.results) {
+        // Handle paginated responses
+        return response.data.results
+      } else if (response.data && response.data.data) {
+        // Handle nested data responses
+        return response.data.data
+      }
+      // Return empty array as fallback
+      return []
+    },
     retry: 1,
     retryDelay: 1000,
     onError: (error) => {
@@ -72,6 +89,18 @@ const Calculator = () => {
       toast.error('Unable to load states data. Please refresh the page.')
     }
   })
+
+  // Debug logging - remove after fixing
+  useEffect(() => {
+    console.log('States loading:', statesLoading)
+    console.log('States error:', statesError)
+    console.log('States data:', states)
+    console.log('States is array?', Array.isArray(states))
+    if (states && Array.isArray(states)) {
+      console.log('Number of states loaded:', states.length)
+      console.log('First few states:', states.slice(0, 3))
+    }
+  }, [states, statesLoading, statesError])
 
   // Fetch existing calculation if editing
   const { data: calculation, isLoading: calculationLoading, error: calculationError } = useQuery({
@@ -154,7 +183,7 @@ const Calculator = () => {
 
   // Get comparison data when origin state changes
   useEffect(() => {
-    if (selectedOriginState && states) {
+    if (selectedOriginState && states && Array.isArray(states)) {
       const maineState = states.find(s => s.state_code === 'ME')
       if (maineState) {
         statesAPI.compareStates({ 
@@ -257,7 +286,7 @@ const Calculator = () => {
           <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Unable to Load States Data</h2>
           <p className="text-gray-600 mb-6">
-            There's an issue with the backend states API. Please check that your Django server is running 
+            There's an issue with loading state information. Please check that your Django server is running 
             and the states endpoint is properly configured.
           </p>
           <div className="space-x-4">
@@ -274,28 +303,55 @@ const Calculator = () => {
               Back to Dashboard
             </button>
           </div>
+          <div className="mt-4 p-4 bg-red-50 rounded-lg">
+            <p className="text-sm text-red-600">
+              Error: {statesError?.message || 'Unknown error occurred'}
+            </p>
+            <p className="text-xs text-gray-500 mt-2">
+              API Endpoint: /api/states/ - Make sure your backend is running on port 8000
+            </p>
+          </div>
         </div>
       </div>
     )
   }
 
-  // Handle case where we have no states data
-  if (!states || states.length === 0) {
+  // Handle case where we have no states data or states is not an array
+  if (!states || !Array.isArray(states) || states.length === 0) {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center">
           <AlertTriangle className="mx-auto h-12 w-12 text-yellow-500 mb-4" />
           <h2 className="text-2xl font-bold text-gray-900 mb-2">No States Data Available</h2>
           <p className="text-gray-600 mb-6">
-            The states database appears to be empty. Please ensure your Django backend 
-            has been populated with state data.
+            {!states 
+              ? 'Unable to load states data from the server.' 
+              : !Array.isArray(states)
+              ? `Expected array but received: ${typeof states}. Check API response format.`
+              : 'The states database appears to be empty.'
+            }
           </p>
-          <button 
-            onClick={() => navigate('/dashboard')} 
-            className="btn-primary"
-          >
-            Back to Dashboard
-          </button>
+          <div className="space-x-4">
+            <button 
+              onClick={() => window.location.reload()} 
+              className="btn-primary"
+            >
+              Retry
+            </button>
+            <button 
+              onClick={() => navigate('/dashboard')} 
+              className="btn-secondary"
+            >
+              Back to Dashboard
+            </button>
+          </div>
+          {states && (
+            <div className="mt-4 p-4 bg-yellow-50 rounded-lg">
+              <p className="text-sm text-yellow-700">
+                Debug info: States data type is {typeof states}, value: {JSON.stringify(states).slice(0, 200)}...
+              </p>
+            </div>
+          )}
         </div>
       </div>
     )
@@ -384,7 +440,7 @@ const Calculator = () => {
                     Current State *
                   </label>
                   <StateSelector
-                    states={states}
+                    states={states || []}
                     selectedState={selectedOriginState}
                     onStateChange={handleStateChange}
                     excludeStates={['ME']}
@@ -679,6 +735,21 @@ const Calculator = () => {
                         {comparisonData.percentage_changes.overall_cost_of_living}%
                       </span>
                     </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Debug Information */}
+            {states && Array.isArray(states) && (
+              <div className="bg-green-50 rounded-lg p-4">
+                <div className="flex items-start">
+                  <Info className="h-5 w-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-green-700">
+                    <p className="font-medium mb-1">States Loaded Successfully!</p>
+                    <p className="text-green-600">
+                      Found {states.length} states available for comparison.
+                    </p>
                   </div>
                 </div>
               </div>

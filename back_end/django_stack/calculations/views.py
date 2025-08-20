@@ -300,3 +300,69 @@ def states_comparison_data(request):
         
     except StateData.DoesNotExist:
         return Response({'error': 'State not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    # Add these to your calculations/views.py
+
+class CostCalculationDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """Get, update, or delete a specific calculation"""
+    serializer_class = CostCalculationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        return CostCalculation.objects.filter(user=self.request.user)
+    
+    def destroy(self, request, *args, **kwargs):
+        """Delete a calculation with proper response"""
+        instance = self.get_object()
+        calculation_name = instance.calculation_name
+        self.perform_destroy(instance)
+        return Response({
+            'message': f'Calculation "{calculation_name}" deleted successfully'
+        }, status=status.HTTP_200_OK)
+
+class CostCalculationDuplicateView(generics.CreateAPIView):
+    """Duplicate an existing calculation"""
+    serializer_class = CostCalculationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def create(self, request, *args, **kwargs):
+        original_calculation = get_object_or_404(
+            CostCalculation.objects.filter(user=request.user),
+            pk=kwargs['pk']
+        )
+        
+        # Create a copy with modified name
+        calculation_data = CostCalculationSerializer(original_calculation).data
+        calculation_data['calculation_name'] = f"Copy of {calculation_data['calculation_name']}"
+        calculation_data['is_favorite'] = False
+        
+        # Remove read-only fields
+        for field in ['id', 'user', 'created_at', 'updated_at', 'notes']:
+            calculation_data.pop(field, None)
+        
+        serializer = self.get_serializer(data=calculation_data)
+        serializer.is_valid(raise_exception=True)
+        new_calculation = serializer.save()
+        
+        return Response({
+            'message': f'Calculation duplicated successfully',
+            'calculation': serializer.data
+        }, status=status.HTTP_201_CREATED)
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def toggle_calculation_favorite(request, pk):
+    """Toggle the favorite status of a calculation"""
+    calculation = get_object_or_404(
+        CostCalculation.objects.filter(user=request.user),
+        pk=pk
+    )
+    
+    calculation.is_favorite = not calculation.is_favorite
+    calculation.save()
+    
+    return Response({
+        'id': calculation.id,
+        'is_favorite': calculation.is_favorite,
+        'message': f"Calculation {'added to' if calculation.is_favorite else 'removed from'} favorites"
+    })

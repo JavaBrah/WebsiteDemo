@@ -1,7 +1,8 @@
-// src/pages/Dashboard.jsx
-import React from 'react'
+// src/pages/Dashboard.jsx - Enhanced with delete functionality
+import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
 import { 
   Calculator, 
   Plus, 
@@ -12,7 +13,9 @@ import {
   Copy,
   TrendingUp,
   TrendingDown,
-  DollarSign
+  DollarSign,
+  AlertTriangle,
+  X
 } from 'lucide-react'
 import { calculationsAPI, dashboardAPI } from '../utils/api'
 import LoadingSpinner from '../components/LoadingSpinner'
@@ -20,6 +23,8 @@ import { useAuth } from '../context/AuthContext'
 
 const Dashboard = () => {
   const { user } = useAuth()
+  const queryClient = useQueryClient()
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null)
 
   // Fetch dashboard data using correct React Query v5 syntax
   const { 
@@ -43,6 +48,73 @@ const Dashboard = () => {
     select: (response) => response.data.results || response.data
   })
 
+  // Delete calculation mutation
+  const deleteCalculationMutation = useMutation({
+    mutationFn: (id) => calculationsAPI.delete(id),
+    onSuccess: (_, deletedId) => {
+      toast.success('Calculation deleted successfully')
+      // Invalidate and refetch both queries
+      queryClient.invalidateQueries({ queryKey: ['calculations'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      setDeleteConfirmId(null)
+    },
+    onError: (error) => {
+      console.error('Delete error:', error)
+      toast.error('Failed to delete calculation')
+      setDeleteConfirmId(null)
+    }
+  })
+
+  // Duplicate calculation mutation
+  const duplicateCalculationMutation = useMutation({
+    mutationFn: (id) => calculationsAPI.duplicate(id),
+    onSuccess: (response) => {
+      toast.success('Calculation duplicated successfully')
+      queryClient.invalidateQueries({ queryKey: ['calculations'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+    onError: (error) => {
+      console.error('Duplicate error:', error)
+      toast.error('Failed to duplicate calculation')
+    }
+  })
+
+  // Toggle favorite mutation
+  const toggleFavoriteMutation = useMutation({
+    mutationFn: (id) => calculationsAPI.toggleFavorite(id),
+    onSuccess: (response) => {
+      toast.success(response.data.message || 'Favorite status updated')
+      queryClient.invalidateQueries({ queryKey: ['calculations'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+    onError: (error) => {
+      console.error('Toggle favorite error:', error)
+      toast.error('Failed to update favorite status')
+    }
+  })
+
+  const handleDelete = (id) => {
+    setDeleteConfirmId(id)
+  }
+
+  const confirmDelete = () => {
+    if (deleteConfirmId) {
+      deleteCalculationMutation.mutate(deleteConfirmId)
+    }
+  }
+
+  const cancelDelete = () => {
+    setDeleteConfirmId(null)
+  }
+
+  const handleDuplicate = (id) => {
+    duplicateCalculationMutation.mutate(id)
+  }
+
+  const handleToggleFavorite = (id) => {
+    toggleFavoriteMutation.mutate(id)
+  }
+
   if (dashboardLoading || calculationsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -55,8 +127,15 @@ const Dashboard = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
+          <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Error Loading Dashboard</h2>
-          <p className="text-gray-600">Please try refreshing the page.</p>
+          <p className="text-gray-600 mb-4">Please try refreshing the page.</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="btn-primary"
+          >
+            Refresh
+          </button>
         </div>
       </div>
     )
@@ -64,6 +143,42 @@ const Dashboard = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-mx-4">
+            <div className="flex items-center mb-4">
+              <AlertTriangle className="h-6 w-6 text-red-500 mr-2" />
+              <h3 className="text-lg font-semibold text-gray-900">Confirm Deletion</h3>
+            </div>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete this calculation? This action cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={cancelDelete}
+                className="btn-secondary"
+                disabled={deleteCalculationMutation.isPending}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="btn-danger flex items-center"
+                disabled={deleteCalculationMutation.isPending}
+              >
+                {deleteCalculationMutation.isPending ? (
+                  <LoadingSpinner size="sm" className="mr-2" />
+                ) : (
+                  <Trash2 className="h-4 w-4 mr-2" />
+                )}
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between">
@@ -207,24 +322,43 @@ const Dashboard = () => {
                     )}
 
                     <div className="flex items-center space-x-2">
+                      {/* Favorite Toggle */}
+                      <button
+                        onClick={() => handleToggleFavorite(calculation.id)}
+                        className={`p-2 rounded-full hover:bg-gray-100 ${
+                          calculation.is_favorite ? 'text-yellow-500' : 'text-gray-400'
+                        }`}
+                        title={calculation.is_favorite ? 'Remove from favorites' : 'Add to favorites'}
+                        disabled={toggleFavoriteMutation.isPending}
+                      >
+                        <Star className={`h-4 w-4 ${calculation.is_favorite ? 'fill-current' : ''}`} />
+                      </button>
+
+                      {/* Edit */}
                       <Link
                         to={`/calculator/${calculation.id}`}
-                        className="text-gray-400 hover:text-maine-600"
+                        className="p-2 rounded-full text-gray-400 hover:text-maine-600 hover:bg-gray-100"
                         title="Edit calculation"
                       >
                         <Edit className="h-4 w-4" />
                       </Link>
+
+                      {/* Duplicate */}
                       <button
-                        type="button"
-                        className="text-gray-400 hover:text-blue-600"
+                        onClick={() => handleDuplicate(calculation.id)}
+                        className="p-2 rounded-full text-gray-400 hover:text-blue-600 hover:bg-gray-100"
                         title="Duplicate calculation"
+                        disabled={duplicateCalculationMutation.isPending}
                       >
                         <Copy className="h-4 w-4" />
                       </button>
+
+                      {/* Delete */}
                       <button
-                        type="button"
-                        className="text-gray-400 hover:text-red-600"
+                        onClick={() => handleDelete(calculation.id)}
+                        className="p-2 rounded-full text-gray-400 hover:text-red-600 hover:bg-gray-100"
                         title="Delete calculation"
+                        disabled={deleteCalculationMutation.isPending}
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>

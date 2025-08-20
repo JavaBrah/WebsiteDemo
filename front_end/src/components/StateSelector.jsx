@@ -12,8 +12,18 @@ const StateSelector = ({
   const [searchTerm, setSearchTerm] = useState('')
   const dropdownRef = useRef(null)
 
+  // Ensure states is always an array
+  const safeStates = Array.isArray(states) ? states : []
+
+  // Add debugging
+  useEffect(() => {
+    console.log('StateSelector received states:', states)
+    console.log('Is states an array?', Array.isArray(states))
+    console.log('Safe states length:', safeStates.length)
+  }, [states, safeStates])
+
   // Filter states based on search term and exclusions
-  const filteredStates = states.filter(state => {
+  const filteredStates = safeStates.filter(state => {
     const matchesSearch = state.state_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          state.state_code.toLowerCase().includes(searchTerm.toLowerCase())
     const isNotExcluded = !excludeStates.includes(state.state_code)
@@ -46,12 +56,15 @@ const StateSelector = ({
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-400 transition-colors duration-200 flex items-center justify-between"
-        style={{ backgroundColor: 'white', color: 'black' }}
       >
-        <span className={selectedState ? 'text-black font-medium' : 'text-gray-600'} style={{ color: selectedState ? 'black' : '#6B7280' }}>
+        <span className={selectedState ? 'text-gray-300 font-medium' : 'text-gray-300'}>
           {selectedState ? `${selectedState.state_name} (${selectedState.state_code})` : placeholder}
         </span>
-        <ChevronDown className="h-4 w-4 text-gray-500 transition-transform duration-200" style={{ color: '#6B7280', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }} />
+        <ChevronDown 
+          className={`h-4 w-4 text-gray-300 transition-transform duration-200 ${
+            isOpen ? 'rotate-180' : 'rotate-0'
+          }`} 
+        />
       </button>
 
       {/* Dropdown menu */}
@@ -66,7 +79,7 @@ const StateSelector = ({
                 placeholder="Search states..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-black placeholder-gray-500"
+                className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-300 placeholder-gray-500"
               />
             </div>
           </div>
@@ -83,21 +96,21 @@ const StateSelector = ({
                     index !== filteredStates.length - 1 ? 'border-b border-gray-100' : ''
                   }`}
                 >
-                  <span className="text-black font-medium group-hover:text-blue-700">
+                  <span className="text-gray-300 font-medium group-hover:text-blue-700">
                     {state.state_name}
                   </span>
-                  <span className="text-gray-700 text-sm font-mono bg-gray-200 px-2 py-1 rounded group-hover:bg-blue-100 group-hover:text-blue-600">
+                  <span className="text-gray-600 text-sm font-mono bg-gray-100 px-2 py-1 rounded group-hover:bg-blue-100 group-hover:text-blue-600">
                     {state.state_code}
                   </span>
                 </button>
               ))
             ) : (
               <div className="px-4 py-6 text-center">
-                <div className="text-black text-sm">
+                <div className="text-gray-300 text-sm">
                   {searchTerm ? 'No states match your search' : 'No states found'}
                 </div>
                 {searchTerm && (
-                  <div className="text-gray-600 text-xs mt-1">
+                  <div className="text-gray-500 text-xs mt-1">
                     Try searching by state name or code
                   </div>
                 )}
@@ -107,8 +120,8 @@ const StateSelector = ({
 
           {/* Results count footer */}
           {filteredStates.length > 0 && (
-            <div className="px-3 py-2 bg-white border-t border-gray-200 text-xs text-black">
-              {filteredStates.length} of {states.length} states
+            <div className="px-3 py-2 bg-gray-50 border-t border-gray-200 text-xs text-gray-00">
+              {filteredStates.length} of {safeStates.length} states
               {searchTerm && ` matching "${searchTerm}"`}
             </div>
           )}
