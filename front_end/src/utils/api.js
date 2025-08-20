@@ -19,6 +19,17 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Token ${token}`
     }
+    
+    // Debug logging for registration requests
+    if (config.url?.includes('/auth/register/')) {
+      console.log('Registration request config:', {
+        url: config.url,
+        method: config.method,
+        headers: config.headers,
+        data: config.data ? { ...config.data, password: '[REDACTED]' } : null
+      })
+    }
+    
     return config
   },
   (error) => {

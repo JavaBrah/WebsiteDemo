@@ -23,11 +23,12 @@ const Register = () => {
     email: '',
     password: '',
     confirm_password: '',
-    military_branch: '',
-    veteran_status: '',
+    // NOTE: Military branch and veteran status removed from registration
+    // These will be handled in profile update after successful registration
     terms_accepted: false
   })
   const [errors, setErrors] = useState({})
+  const [serverErrors, setServerErrors] = useState({})
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -39,23 +40,22 @@ const Register = () => {
     }
   }, [isAuthenticated, navigate])
 
-  const militaryBranches = [
-    'Army', 'Navy', 'Air Force', 'Marines', 'Coast Guard', 'Space Force'
-  ]
-
-  const veteranStatuses = [
-    'Active Duty', 'Veteran', 'Retired', 'Reserve', 'National Guard'
-  ]
-
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }))
-    // Clear error when user starts typing
+    
+    // Clear errors when user starts typing
     if (errors[name]) {
       setErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }))
+    }
+    if (serverErrors[name]) {
+      setServerErrors(prev => ({
         ...prev,
         [name]: ''
       }))
@@ -87,7 +87,9 @@ const Register = () => {
       newErrors.password = 'Password must contain uppercase, lowercase, and number'
     }
 
-    if (formData.password !== formData.confirm_password) {
+    if (!formData.confirm_password) {
+      newErrors.confirm_password = 'Please confirm your password'
+    } else if (formData.password !== formData.confirm_password) {
       newErrors.confirm_password = 'Passwords do not match'
     }
 
@@ -102,29 +104,66 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     
+    // Clear previous server errors
+    setServerErrors({})
+    
     if (!validateForm()) {
       return
     }
 
     setIsSubmitting(true)
     try {
-      const result = await register({
+      // IMPORTANT: Prepare data with exact field names expected by Django backend
+      const submitData = {
+        // Backend expects 'username' field (using email as username)
+        username: formData.email.trim().toLowerCase(),
+        // Standard user fields
+        email: formData.email.trim().toLowerCase(),
         first_name: formData.first_name.trim(),
         last_name: formData.last_name.trim(),
-        email: formData.email.trim(),
+        // Password fields (backend expects 'password_confirm' not 'confirm_password')
         password: formData.password,
-        military_branch: formData.military_branch,
-        veteran_status: formData.veteran_status
+        password_confirm: formData.confirm_password
+      }
+
+      console.log('Submitting registration data:', {
+        ...submitData,
+        password: '[REDACTED]',
+        password_confirm: '[REDACTED]'
       })
 
+      const result = await register(submitData)
+
       if (result.success) {
+        // Registration successful - redirect to dashboard
         navigate('/dashboard', { replace: true })
+      } else {
+        // Handle field-specific errors from server
+        if (result.fieldErrors) {
+          setServerErrors(result.fieldErrors)
+        }
       }
     } catch (error) {
-      console.error('Registration error:', error)
+      console.error('Registration submission error:', error)
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  // Helper function to get error message for a field (handle server field mapping)
+  const getFieldError = (fieldName) => {
+    // Check both client field name and server field name
+    const clientError = errors[fieldName] || serverErrors[fieldName]
+    
+    // Handle server field name mapping
+    if (fieldName === 'email' && serverErrors.username) {
+      return serverErrors.username
+    }
+    if (fieldName === 'confirm_password' && serverErrors.password_confirm) {
+      return serverErrors.password_confirm
+    }
+    
+    return clientError || ''
   }
 
   if (loading) {
@@ -155,6 +194,13 @@ const Register = () => {
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-2xl">
         <div className="bg-white py-8 px-4 shadow-lg sm:rounded-lg sm:px-10">
           <form className="space-y-6" onSubmit={handleSubmit}>
+            {/* Display general server errors */}
+            {serverErrors.non_field_errors && (
+              <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                <p className="text-sm text-red-600">{serverErrors.non_field_errors}</p>
+              </div>
+            )}
+
             {/* Personal Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
@@ -173,13 +219,13 @@ const Register = () => {
                     value={formData.first_name}
                     onChange={handleInputChange}
                     className={`form-input pl-10 ${
-                      errors.first_name ? 'border-red-300 focus:ring-red-500' : ''
+                      getFieldError('first_name') ? 'border-red-300 focus:ring-red-500' : ''
                     }`}
                     placeholder="John"
                   />
                 </div>
-                {errors.first_name && (
-                  <p className="mt-1 text-sm text-red-600">{errors.first_name}</p>
+                {getFieldError('first_name') && (
+                  <p className="mt-1 text-sm text-red-600">{getFieldError('first_name')}</p>
                 )}
               </div>
 
@@ -199,13 +245,13 @@ const Register = () => {
                     value={formData.last_name}
                     onChange={handleInputChange}
                     className={`form-input pl-10 ${
-                      errors.last_name ? 'border-red-300 focus:ring-red-500' : ''
+                      getFieldError('last_name') ? 'border-red-300 focus:ring-red-500' : ''
                     }`}
                     placeholder="Doe"
                   />
                 </div>
-                {errors.last_name && (
-                  <p className="mt-1 text-sm text-red-600">{errors.last_name}</p>
+                {getFieldError('last_name') && (
+                  <p className="mt-1 text-sm text-red-600">{getFieldError('last_name')}</p>
                 )}
               </div>
             </div>
@@ -227,13 +273,13 @@ const Register = () => {
                   value={formData.email}
                   onChange={handleInputChange}
                   className={`form-input pl-10 ${
-                    errors.email ? 'border-red-300 focus:ring-red-500' : ''
+                    getFieldError('email') ? 'border-red-300 focus:ring-red-500' : ''
                   }`}
                   placeholder="john.doe@example.com"
                 />
               </div>
-              {errors.email && (
-                <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+              {getFieldError('email') && (
+                <p className="mt-1 text-sm text-red-600">{getFieldError('email')}</p>
               )}
             </div>
 
@@ -255,7 +301,7 @@ const Register = () => {
                     value={formData.password}
                     onChange={handleInputChange}
                     className={`form-input pl-10 pr-10 ${
-                      errors.password ? 'border-red-300 focus:ring-red-500' : ''
+                      getFieldError('password') ? 'border-red-300 focus:ring-red-500' : ''
                     }`}
                     placeholder="Enter password"
                   />
@@ -271,8 +317,8 @@ const Register = () => {
                     )}
                   </button>
                 </div>
-                {errors.password && (
-                  <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+                {getFieldError('password') && (
+                  <p className="mt-1 text-sm text-red-600">{getFieldError('password')}</p>
                 )}
                 <div className="mt-1 text-xs text-gray-500">
                   Must contain uppercase, lowercase, and number
@@ -295,7 +341,7 @@ const Register = () => {
                     value={formData.confirm_password}
                     onChange={handleInputChange}
                     className={`form-input pl-10 pr-10 ${
-                      errors.confirm_password ? 'border-red-300 focus:ring-red-500' : ''
+                      getFieldError('confirm_password') ? 'border-red-300 focus:ring-red-500' : ''
                     }`}
                     placeholder="Confirm password"
                   />
@@ -311,48 +357,28 @@ const Register = () => {
                     )}
                   </button>
                 </div>
-                {errors.confirm_password && (
-                  <p className="mt-1 text-sm text-red-600">{errors.confirm_password}</p>
+                {getFieldError('confirm_password') && (
+                  <p className="mt-1 text-sm text-red-600">{getFieldError('confirm_password')}</p>
                 )}
               </div>
             </div>
 
-            {/* Military Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label htmlFor="military_branch" className="form-label">
-                  Military Branch
-                </label>
-                <select
-                  id="military_branch"
-                  name="military_branch"
-                  value={formData.military_branch}
-                  onChange={handleInputChange}
-                  className="form-input"
-                >
-                  <option value="">Select branch (optional)</option>
-                  {militaryBranches.map(branch => (
-                    <option key={branch} value={branch}>{branch}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="veteran_status" className="form-label">
-                  Current Status
-                </label>
-                <select
-                  id="veteran_status"
-                  name="veteran_status"
-                  value={formData.veteran_status}
-                  onChange={handleInputChange}
-                  className="form-input"
-                >
-                  <option value="">Select status (optional)</option>
-                  {veteranStatuses.map(status => (
-                    <option key={status} value={status}>{status}</option>
-                  ))}
-                </select>
+            {/* NOTE: Military information section removed from registration */}
+            {/* Users can update their military service details in their profile after registration */}
+            
+            {/* Information note about profile setup */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <Shield className="h-5 w-5 text-blue-500 mt-0.5" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-blue-800">
+                    <strong>Veteran Information:</strong> After creating your account, 
+                    you can add your military service details and veteran status in your profile 
+                    to get personalized calculations and benefits information.
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -367,7 +393,7 @@ const Register = () => {
                     checked={formData.terms_accepted}
                     onChange={handleInputChange}
                     className={`h-4 w-4 text-maine-600 focus:ring-maine-500 border-gray-300 rounded ${
-                      errors.terms_accepted ? 'border-red-300' : ''
+                      getFieldError('terms_accepted') ? 'border-red-300' : ''
                     }`}
                   />
                 </div>
@@ -385,8 +411,8 @@ const Register = () => {
                   </label>
                 </div>
               </div>
-              {errors.terms_accepted && (
-                <p className="mt-1 text-sm text-red-600">{errors.terms_accepted}</p>
+              {getFieldError('terms_accepted') && (
+                <p className="mt-1 text-sm text-red-600">{getFieldError('terms_accepted')}</p>
               )}
             </div>
 

@@ -1,61 +1,62 @@
 // src/pages/Dashboard.jsx
 import React from 'react'
-import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import { useQuery } from '@tanstack/react-query'
 import { 
   Calculator, 
   Plus, 
-  Edit3, 
+  BarChart3, 
+  Star, 
+  Edit, 
   Trash2, 
-  BarChart3,
-  DollarSign,
+  Copy,
   TrendingUp,
   TrendingDown,
-  Calendar
+  DollarSign
 } from 'lucide-react'
-import { calculationsAPI } from '../utils/api'
+import { calculationsAPI, dashboardAPI } from '../utils/api'
 import LoadingSpinner from '../components/LoadingSpinner'
+import { useAuth } from '../context/AuthContext'
 
 const Dashboard = () => {
   const { user } = useAuth()
 
-  // Fetch user's calculations
-  const { data: calculations, isLoading, error } = useQuery(
-    'calculations',
-    () => calculationsAPI.getAll(),
-    {
-      select: (response) => response.data,
-      onError: (error) => {
-        console.error('Failed to fetch calculations:', error)
-      }
-    }
-  )
+  // Fetch dashboard data using correct React Query v5 syntax
+  const { 
+    data: dashboardData, 
+    isLoading: dashboardLoading, 
+    error: dashboardError 
+  } = useQuery({
+    queryKey: ['dashboard'],
+    queryFn: () => dashboardAPI.getDashboardData(),
+    select: (response) => response.data
+  })
 
-  const handleDeleteCalculation = async (id) => {
-    if (window.confirm('Are you sure you want to delete this calculation?')) {
-      try {
-        await calculationsAPI.delete(id)
-        // React Query will automatically refetch
-      } catch (error) {
-        console.error('Failed to delete calculation:', error)
-      }
-    }
-  }
+  // Fetch recent calculations using correct React Query v5 syntax
+  const { 
+    data: calculations, 
+    isLoading: calculationsLoading, 
+    error: calculationsError 
+  } = useQuery({
+    queryKey: ['calculations', { limit: 5 }],
+    queryFn: () => calculationsAPI.getAll({ limit: 5, ordering: '-created_at' }),
+    select: (response) => response.data.results || response.data
+  })
 
-  if (isLoading) {
+  if (dashboardLoading || calculationsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner size="lg" text="Loading your dashboard..." />
+        <LoadingSpinner size="lg" text="Loading dashboard..." />
       </div>
     )
   }
 
-  if (error) {
+  if (dashboardError || calculationsError) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-          <p className="text-red-600">Failed to load dashboard data. Please try again.</p>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Error Loading Dashboard</h2>
+          <p className="text-gray-600">Please try refreshing the page.</p>
         </div>
       </div>
     )
@@ -65,149 +66,234 @@ const Dashboard = () => {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-          <BarChart3 className="mr-3 h-8 w-8 text-maine-600" />
-          Welcome back, {user?.first_name || 'Veteran'}!
-        </h1>
-        <p className="mt-2 text-lg text-gray-600">
-          Manage your cost calculations and explore your Maine opportunities
-        </p>
-      </div>
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center">
-            <Calculator className="h-8 w-8 text-maine-600" />
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Calculations</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {calculations?.length || 0}
-              </p>
-            </div>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">
+              Welcome back, {user?.first_name || 'Veteran'}!
+            </h1>
+            <p className="mt-2 text-lg text-gray-600">
+              Here's an overview of your cost calculations and Maine move planning.
+            </p>
           </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center">
-            <DollarSign className="h-8 w-8 text-green-600" />
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Avg Monthly Savings</p>
-              <p className="text-2xl font-bold text-gray-900">
-                ${calculations?.length > 0 
-                  ? Math.round(calculations.reduce((sum, calc) => sum + (calc.total_monthly_savings || 0), 0) / calculations.length)
-                  : 0
-                }
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center">
-            <Calendar className="h-8 w-8 text-blue-600" />
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Last Updated</p>
-              <p className="text-sm font-bold text-gray-900">
-                {calculations?.length > 0 
-                  ? new Date(Math.max(...calculations.map(c => new Date(c.updated_at)))).toLocaleDateString()
-                  : 'Never'
-                }
-              </p>
-            </div>
-          </div>
+          <Link
+            to="/calculator"
+            className="btn-primary flex items-center"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            New Calculation
+          </Link>
         </div>
       </div>
 
-      {/* Calculations List */}
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <Calculator className="h-8 w-8 text-maine-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-500">Total Calculations</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {dashboardData?.total_calculations || calculations?.length || 0}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <DollarSign className="h-8 w-8 text-green-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-500">Average Savings</p>
+              <p className="text-2xl font-bold text-gray-900">
+                ${dashboardData?.average_savings || '0'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <Star className="h-8 w-8 text-yellow-500" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-500">Favorites</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {dashboardData?.favorite_calculations || 0}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <BarChart3 className="h-8 w-8 text-blue-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-500">This Month</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {dashboardData?.calculations_this_month || 0}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Calculations */}
       <div className="bg-white rounded-lg shadow-md">
         <div className="px-6 py-4 border-b border-gray-200">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-gray-900">
-              Your Calculations
-            </h2>
+            <h2 className="text-xl font-semibold text-gray-900">Recent Calculations</h2>
             <Link
               to="/calculator"
-              className="btn-primary flex items-center"
+              className="text-maine-600 hover:text-maine-700 text-sm font-medium"
             >
-              <Plus className="h-4 w-4 mr-2" />
-              New Calculation
+              View All
             </Link>
           </div>
         </div>
 
-        <div className="p-6">
-          {calculations && calculations.length > 0 ? (
-            <div className="space-y-4">
-              {calculations.map((calculation) => (
-                <div key={calculation.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900">
+        {calculations && calculations.length > 0 ? (
+          <div className="divide-y divide-gray-200">
+            {calculations.map((calculation) => (
+              <div key={calculation.id} className="px-6 py-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center">
+                      <h3 className="text-lg font-medium text-gray-900">
                         {calculation.calculation_name}
                       </h3>
-                      <p className="text-sm text-gray-600 mt-1">
-                        {calculation.origin_state?.state_name} → Maine
-                      </p>
-                      <div className="flex items-center mt-2 space-x-4">
+                      {calculation.is_favorite && (
+                        <Star className="ml-2 h-4 w-4 text-yellow-500 fill-current" />
+                      )}
+                    </div>
+                    <div className="mt-1 flex items-center text-sm text-gray-500">
+                      <span>
+                        {calculation.origin_state?.state_name || 'Unknown'} → Maine
+                      </span>
+                      <span className="mx-2">•</span>
+                      <span>
+                        Created {new Date(calculation.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-4">
+                    {calculation.total_monthly_savings !== null && (
+                      <div className="text-right">
                         <div className="flex items-center">
                           {calculation.total_monthly_savings >= 0 ? (
                             <TrendingDown className="h-4 w-4 text-green-500 mr-1" />
                           ) : (
                             <TrendingUp className="h-4 w-4 text-red-500 mr-1" />
                           )}
-                          <span className={`text-sm font-medium ${
-                            calculation.total_monthly_savings >= 0 ? 'text-green-600' : 'text-red-600'
+                          <span className={`font-medium ${
+                            calculation.total_monthly_savings >= 0 
+                              ? 'text-green-600' 
+                              : 'text-red-600'
                           }`}>
-                            {calculation.total_monthly_savings >= 0 ? 'Save' : 'Cost'} $
-                            {Math.abs(calculation.total_monthly_savings || 0).toLocaleString()}/month
+                            ${Math.abs(calculation.total_monthly_savings).toLocaleString()}
                           </span>
                         </div>
-                        <span className="text-xs text-gray-500">
-                          Updated {new Date(calculation.updated_at).toLocaleDateString()}
-                        </span>
+                        <p className="text-xs text-gray-500">
+                          {calculation.total_monthly_savings >= 0 ? 'savings' : 'increase'} monthly
+                        </p>
                       </div>
-                    </div>
-                    
+                    )}
+
                     <div className="flex items-center space-x-2">
                       <Link
                         to={`/calculator/${calculation.id}`}
-                        className="btn-secondary flex items-center"
+                        className="text-gray-400 hover:text-maine-600"
+                        title="Edit calculation"
                       >
-                        <Edit3 className="h-4 w-4 mr-1" />
-                        Edit
+                        <Edit className="h-4 w-4" />
                       </Link>
                       <button
-                        onClick={() => handleDeleteCalculation(calculation.id)}
-                        className="btn-danger flex items-center"
+                        type="button"
+                        className="text-gray-400 hover:text-blue-600"
+                        title="Duplicate calculation"
                       >
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        Delete
+                        <Copy className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        className="text-gray-400 hover:text-red-600"
+                        title="Delete calculation"
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <Calculator className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                No calculations yet
-              </h3>
-              <p className="text-gray-600 mb-6">
-                Create your first cost comparison to see how much you could save in Maine.
-              </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="px-6 py-12 text-center">
+            <Calculator className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">No calculations yet</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Get started by creating your first cost comparison.
+            </p>
+            <div className="mt-6">
               <Link
                 to="/calculator"
                 className="btn-primary inline-flex items-center"
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Create Your First Calculation
+                Create Calculation
               </Link>
             </div>
-          )}
-        </div>
+          </div>
+        )}
+      </div>
+
+      {/* Quick Actions */}
+      <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Link
+          to="/calculator"
+          className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow group"
+        >
+          <div className="flex items-center">
+            <Calculator className="h-8 w-8 text-maine-600 group-hover:text-maine-700" />
+            <div className="ml-4">
+              <h3 className="text-lg font-medium text-gray-900">New Calculation</h3>
+              <p className="text-sm text-gray-500">Compare costs between states</p>
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          to="/about"
+          className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow group"
+        >
+          <div className="flex items-center">
+            <BarChart3 className="h-8 w-8 text-blue-600 group-hover:text-blue-700" />
+            <div className="ml-4">
+              <h3 className="text-lg font-medium text-gray-900">Learn More</h3>
+              <p className="text-sm text-gray-500">About Maine benefits for veterans</p>
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          to="/contact"
+          className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow group"
+        >
+          <div className="flex items-center">
+            <Star className="h-8 w-8 text-yellow-500 group-hover:text-yellow-600" />
+            <div className="ml-4">
+              <h3 className="text-lg font-medium text-gray-900">Get Help</h3>
+              <p className="text-sm text-gray-500">Contact our support team</p>
+            </div>
+          </div>
+        </Link>
       </div>
     </div>
   )

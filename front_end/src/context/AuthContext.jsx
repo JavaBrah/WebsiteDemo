@@ -48,6 +48,8 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     try {
       setLoading(true)
+      console.log('Attempting login with:', { email: credentials.email, password: '[REDACTED]' })
+      
       const response = await api.post('/api/calculations/auth/login/', credentials)
       const { token: newToken, user: userData, profile: profileData } = response.data
 
@@ -60,6 +62,9 @@ export const AuthProvider = ({ children }) => {
       toast.success('Login successful!')
       return { success: true }
     } catch (error) {
+      console.error('Login error:', error)
+      console.error('Login error response:', error.response?.data)
+      
       const message = error.response?.data?.detail || 'Login failed'
       toast.error(message)
       return { success: false, error: message }
@@ -71,7 +76,20 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       setLoading(true)
+      
+      // Log the data being sent (without password)
+      console.log('Attempting registration with:', {
+        ...userData,
+        password: '[REDACTED]',
+        password_confirm: '[REDACTED]'
+      })
+
       const response = await api.post('/api/calculations/auth/register/', userData)
+      console.log('Registration response:', {
+        ...response.data,
+        token: response.data.token ? '[TOKEN_RECEIVED]' : 'NO_TOKEN'
+      })
+      
       const { token: newToken, user: newUser, profile: newProfile } = response.data
 
       // Store token and user data
@@ -83,19 +101,41 @@ export const AuthProvider = ({ children }) => {
       toast.success('Account created successfully!')
       return { success: true }
     } catch (error) {
+      console.error('Registration error:', error)
+      console.error('Registration error response:', error.response?.data)
+      console.error('Registration error status:', error.response?.status)
+      
       let message = 'Registration failed'
+      let fieldErrors = {}
+      
       if (error.response?.data) {
         const errors = error.response.data
-        if (typeof errors === 'object') {
+        console.log('Error data type:', typeof errors)
+        console.log('Error data:', errors)
+        
+        if (typeof errors === 'object' && errors !== null) {
           // Handle field-specific errors
+          Object.keys(errors).forEach(field => {
+            const fieldError = errors[field]
+            const errorMessage = Array.isArray(fieldError) ? fieldError[0] : fieldError
+            fieldErrors[field] = errorMessage
+            console.log(`Field ${field} error:`, errorMessage)
+          })
+          
+          // Get the first error for the toast
           const firstError = Object.values(errors)[0]
           message = Array.isArray(firstError) ? firstError[0] : firstError
-        } else {
+        } else if (typeof errors === 'string') {
           message = errors
         }
       }
+      
       toast.error(message)
-      return { success: false, error: message }
+      return { 
+        success: false, 
+        error: message, 
+        fieldErrors 
+      }
     } finally {
       setLoading(false)
     }
@@ -122,11 +162,16 @@ export const AuthProvider = ({ children }) => {
 
   const updateProfile = async (profileData) => {
     try {
+      console.log('Updating profile with:', profileData)
+      
       const response = await api.patch('/api/calculations/auth/profile/', profileData)
       setProfile(response.data)
       toast.success('Profile updated successfully!')
       return { success: true, data: response.data }
     } catch (error) {
+      console.error('Profile update error:', error)
+      console.error('Profile update error response:', error.response?.data)
+      
       const message = error.response?.data?.detail || 'Profile update failed'
       toast.error(message)
       return { success: false, error: message }

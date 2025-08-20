@@ -1,8 +1,15 @@
 // src/pages/Login.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { Shield, Mail, Lock, Eye, EyeOff } from 'lucide-react'
+import { 
+  Shield, 
+  Eye, 
+  EyeOff, 
+  Mail, 
+  Lock,
+  LogIn
+} from 'lucide-react'
 import LoadingSpinner from '../components/LoadingSpinner'
 
 const Login = () => {
@@ -15,6 +22,7 @@ const Login = () => {
     password: ''
   })
   const [errors, setErrors] = useState({})
+  const [serverErrors, setServerErrors] = useState({})
   const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -32,9 +40,16 @@ const Login = () => {
       ...prev,
       [name]: value
     }))
-    // Clear error when user starts typing
+    
+    // Clear errors when user starts typing
     if (errors[name]) {
       setErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }))
+    }
+    if (serverErrors[name]) {
+      setServerErrors(prev => ({
         ...prev,
         [name]: ''
       }))
@@ -61,18 +76,58 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     
+    // Clear previous server errors
+    setServerErrors({})
+    
     if (!validateForm()) {
       return
     }
 
     setIsSubmitting(true)
     try {
-      await login(formData)
+      // IMPORTANT: Django backend expects 'username' field, not 'email'
+      // Since users register with email as username, we send email as username
+      const loginData = {
+        username: formData.email.trim().toLowerCase(), // Backend expects username field
+        password: formData.password
+      }
+
+      console.log('Attempting login with:', {
+        username: loginData.username,
+        password: '[REDACTED]'
+      })
+
+      const result = await login(loginData)
+
+      if (result.success) {
+        // Login successful - navigation is handled by useEffect
+      } else {
+        // Handle field-specific errors from server
+        if (result.fieldErrors) {
+          setServerErrors(result.fieldErrors)
+        }
+      }
     } catch (error) {
-      console.error('Login error:', error)
+      console.error('Login submission error:', error)
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  // Helper function to get error message for a field
+  const getFieldError = (fieldName) => {
+    // Check both client field name and server field name
+    const clientError = errors[fieldName]
+    const serverError = serverErrors[fieldName]
+    
+    // Handle server field name mapping
+    if (fieldName === 'email' && serverErrors.username) {
+      return Array.isArray(serverErrors.username) ? serverErrors.username[0] : serverErrors.username
+    }
+    
+    if (clientError) return clientError
+    if (serverError) return Array.isArray(serverError) ? serverError[0] : serverError
+    return null
   }
 
   if (loading) {
@@ -89,7 +144,7 @@ const Login = () => {
         {/* Header */}
         <div className="text-center">
           <div className="flex justify-center">
-            <Shield className="h-12 w-12 text-blue-600" />
+            <Shield className="h-12 w-12 text-maine-600" />
           </div>
           <h2 className="mt-6 text-3xl font-bold text-gray-900">
             Welcome Back
@@ -103,10 +158,17 @@ const Login = () => {
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow-lg sm:rounded-lg sm:px-10">
           <form className="space-y-6" onSubmit={handleSubmit}>
-            {/* Email */}
+            {/* Display general server errors */}
+            {serverErrors.non_field_errors && (
+              <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                <p className="text-sm text-red-600">{serverErrors.non_field_errors}</p>
+              </div>
+            )}
+
+            {/* Email Field */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                Email Address
+              <label htmlFor="email" className="form-label">
+                Email Address *
               </label>
               <div className="mt-1 relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -119,23 +181,21 @@ const Login = () => {
                   autoComplete="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  style={{ 
-                    color: '#111827',
-                    backgroundColor: '#ffffff'
-                  }}
+                  className={`form-input pl-10 ${
+                    getFieldError('email') ? 'border-red-300 focus:ring-red-500' : ''
+                  }`}
                   placeholder="Enter your email"
                 />
               </div>
-              {errors.email && (
-                <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+              {getFieldError('email') && (
+                <p className="mt-1 text-sm text-red-600">{getFieldError('email')}</p>
               )}
             </div>
 
-            {/* Password */}
+            {/* Password Field */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                Password
+              <label htmlFor="password" className="form-label">
+                Password *
               </label>
               <div className="mt-1 relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -148,11 +208,9 @@ const Login = () => {
                   autoComplete="current-password"
                   value={formData.password}
                   onChange={handleInputChange}
-                  className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  style={{ 
-                    color: '#111827',
-                    backgroundColor: '#ffffff'
-                  }}
+                  className={`form-input pl-10 pr-10 ${
+                    getFieldError('password') ? 'border-red-300 focus:ring-red-500' : ''
+                  }`}
                   placeholder="Enter your password"
                 />
                 <button
@@ -167,19 +225,19 @@ const Login = () => {
                   )}
                 </button>
               </div>
-              {errors.password && (
-                <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+              {getFieldError('password') && (
+                <p className="mt-1 text-sm text-red-600">{getFieldError('password')}</p>
               )}
             </div>
 
-            {/* Remember me and Forgot password */}
+            {/* Remember Me & Forgot Password */}
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <input
                   id="remember-me"
                   name="remember-me"
                   type="checkbox"
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-maine-600 focus:ring-maine-500 border-gray-300 rounded"
                 />
                 <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
                   Remember me
@@ -189,7 +247,7 @@ const Login = () => {
               <div className="text-sm">
                 <Link
                   to="/forgot-password"
-                  className="font-medium text-blue-600 hover:text-blue-500"
+                  className="font-medium text-maine-600 hover:text-maine-500"
                 >
                   Forgot your password?
                 </Link>
@@ -201,15 +259,18 @@ const Login = () => {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                className="btn-primary w-full flex items-center justify-center text-lg py-3"
               >
                 {isSubmitting ? (
                   <>
                     <LoadingSpinner size="sm" className="mr-2" />
-                    Signing in...
+                    Signing In...
                   </>
                 ) : (
-                  'Sign in'
+                  <>
+                    <LogIn className="mr-2 h-5 w-5" />
+                    Sign In
+                  </>
                 )}
               </button>
             </div>
@@ -222,14 +283,14 @@ const Login = () => {
                 <div className="w-full border-t border-gray-300" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">Don't have an account?</span>
+                <span className="px-2 bg-white text-gray-500">New to Maine Veterans?</span>
               </div>
             </div>
 
             <div className="mt-6">
               <Link
                 to="/register"
-                className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+                className="btn-secondary w-full text-center inline-block"
               >
                 Create Account
               </Link>
@@ -241,7 +302,7 @@ const Login = () => {
       {/* Footer */}
       <div className="mt-8 text-center">
         <p className="text-xs text-gray-500">
-          Protected by industry-standard security. Your information is safe with us.
+          Secure access to your veteran cost calculation tools and resources.
         </p>
       </div>
     </div>

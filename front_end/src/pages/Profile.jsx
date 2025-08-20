@@ -24,40 +24,56 @@ const Profile = () => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showPasswordSection, setShowPasswordSection] = useState(false)
   
+  // IMPORTANT: Form data structure matches Django UserProfile model fields exactly
   const [formData, setFormData] = useState({
+    // User model fields
     first_name: '',
     last_name: '',
     email: '',
+    // UserProfile model fields (matching backend exactly)
+    service_branch: '',           // Changed from military_branch to match backend
+    is_veteran: true,             // Backend field
+    receives_disability_compensation: false,  // Backend field
+    disability_rating: '',        // Backend field (integer)
+    receives_military_retirement: false,      // Backend field
+    current_state_id: '',         // Backend expects ID, not object
+    // Additional fields not in backend model (for display/future use)
     phone: '',
     address: '',
     city: '',
     state: '',
     zip_code: '',
-    military_branch: '',
-    service_years: '',
-    veteran_status: '',
+    // Password change fields
     current_password: '',
     new_password: '',
     confirm_password: ''
   })
 
   const [errors, setErrors] = useState({})
+  const [serverErrors, setServerErrors] = useState({})
 
   // Populate form data when profile loads
   useEffect(() => {
     if (user && profile) {
       setFormData({
+        // User fields
         first_name: user.first_name || '',
         last_name: user.last_name || '',
         email: user.email || '',
+        // UserProfile fields (exact backend field names)
+        service_branch: profile.service_branch || '',
+        is_veteran: profile.is_veteran !== undefined ? profile.is_veteran : true,
+        receives_disability_compensation: profile.receives_disability_compensation || false,
+        disability_rating: profile.disability_rating || '',
+        receives_military_retirement: profile.receives_military_retirement || false,
+        current_state_id: profile.current_state?.id || '',
+        // Additional fields (may not exist in backend yet)
         phone: profile.phone || '',
         address: profile.address || '',
         city: profile.city || '',
         state: profile.state || '',
         zip_code: profile.zip_code || '',
-        military_branch: profile.military_branch || '',
-        service_years: profile.service_years || '',
-        veteran_status: profile.veteran_status || '',
+        // Password fields
         current_password: '',
         new_password: '',
         confirm_password: ''
@@ -65,23 +81,32 @@ const Profile = () => {
     }
   }, [user, profile])
 
+  // Military branches matching Django model choices exactly
   const militaryBranches = [
-    'Army', 'Navy', 'Air Force', 'Marines', 'Coast Guard', 'Space Force'
-  ]
-
-  const veteranStatuses = [
-    'Active Duty', 'Veteran', 'Retired', 'Reserve', 'National Guard'
+    { value: '', label: 'Select branch (optional)' },
+    { value: 'army', label: 'Army' },
+    { value: 'navy', label: 'Navy' },
+    { value: 'air_force', label: 'Air Force' },
+    { value: 'marines', label: 'Marines' },
+    { value: 'coast_guard', label: 'Coast Guard' },
+    { value: 'space_force', label: 'Space Force' }
   ]
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target
+    const { name, value, type, checked } = e.target
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: type === 'checkbox' ? checked : value
     }))
     // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }))
+    }
+    if (serverErrors[name]) {
+      setServerErrors(prev => ({
         ...prev,
         [name]: ''
       }))
@@ -105,8 +130,12 @@ const Profile = () => {
       newErrors.email = 'Please enter a valid email'
     }
 
-    if (formData.phone && !/^\(\d{3}\) \d{3}-\d{4}$/.test(formData.phone) && !/^\d{10}$/.test(formData.phone.replace(/\D/g, ''))) {
-      newErrors.phone = 'Please enter a valid phone number'
+    // Disability rating validation
+    if (formData.receives_disability_compensation && formData.disability_rating) {
+      const rating = parseInt(formData.disability_rating)
+      if (isNaN(rating) || rating < 0 || rating > 100) {
+        newErrors.disability_rating = 'Disability rating must be between 0 and 100'
+      }
     }
 
     // Password validation (only if user is trying to change password)
@@ -131,26 +160,31 @@ const Profile = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     
+    // Clear previous server errors
+    setServerErrors({})
+    
     if (!validateForm()) {
       return
     }
 
     setIsSubmitting(true)
     try {
+      // IMPORTANT: Structure data exactly as Django backend expects
       const updateData = {
+        // User model fields (nested under 'user' key)
         user: {
-          first_name: formData.first_name,
-          last_name: formData.last_name,
-          email: formData.email
+          first_name: formData.first_name.trim(),
+          last_name: formData.last_name.trim(),
+          email: formData.email.trim()
         },
-        phone: formData.phone,
-        address: formData.address,
-        city: formData.city,
-        state: formData.state,
-        zip_code: formData.zip_code,
-        military_branch: formData.military_branch,
-        service_years: formData.service_years,
-        veteran_status: formData.veteran_status
+        // UserProfile model fields (direct properties)
+        service_branch: formData.service_branch,
+        is_veteran: formData.is_veteran,
+        receives_disability_compensation: formData.receives_disability_compensation,
+        disability_rating: formData.disability_rating ? parseInt(formData.disability_rating) : null,
+        receives_military_retirement: formData.receives_military_retirement,
+        current_state_id: formData.current_state_id || null
+        // Note: Additional fields like phone, address etc. would need to be added to Django model first
       }
 
       // Add password change if provided
@@ -158,6 +192,12 @@ const Profile = () => {
         updateData.current_password = formData.current_password
         updateData.new_password = formData.new_password
       }
+
+      console.log('Updating profile with data:', {
+        ...updateData,
+        current_password: updateData.current_password ? '[REDACTED]' : undefined,
+        new_password: updateData.new_password ? '[REDACTED]' : undefined
+      })
 
       const result = await updateProfile(updateData)
       
@@ -171,6 +211,11 @@ const Profile = () => {
           new_password: '',
           confirm_password: ''
         }))
+      } else {
+        // Handle field-specific errors from server
+        if (result.fieldErrors) {
+          setServerErrors(result.fieldErrors)
+        }
       }
     } catch (error) {
       console.error('Profile update error:', error)
@@ -181,25 +226,36 @@ const Profile = () => {
 
   const handleCancel = () => {
     // Reset form data to original values
-    setFormData({
-      first_name: user?.first_name || '',
-      last_name: user?.last_name || '',
-      email: user?.email || '',
-      phone: profile?.phone || '',
-      address: profile?.address || '',
-      city: profile?.city || '',
-      state: profile?.state || '',
-      zip_code: profile?.zip_code || '',
-      military_branch: profile?.military_branch || '',
-      service_years: profile?.service_years || '',
-      veteran_status: profile?.veteran_status || '',
-      current_password: '',
-      new_password: '',
-      confirm_password: ''
-    })
+    if (user && profile) {
+      setFormData({
+        first_name: user.first_name || '',
+        last_name: user.last_name || '',
+        email: user.email || '',
+        service_branch: profile.service_branch || '',
+        is_veteran: profile.is_veteran !== undefined ? profile.is_veteran : true,
+        receives_disability_compensation: profile.receives_disability_compensation || false,
+        disability_rating: profile.disability_rating || '',
+        receives_military_retirement: profile.receives_military_retirement || false,
+        current_state_id: profile.current_state?.id || '',
+        phone: profile.phone || '',
+        address: profile.address || '',
+        city: profile.city || '',
+        state: profile.state || '',
+        zip_code: profile.zip_code || '',
+        current_password: '',
+        new_password: '',
+        confirm_password: ''
+      })
+    }
     setErrors({})
+    setServerErrors({})
     setIsEditing(false)
     setShowPasswordSection(false)
+  }
+
+  // Helper function to get error message for a field
+  const getFieldError = (fieldName) => {
+    return errors[fieldName] || serverErrors[fieldName] || ''
   }
 
   if (loading || !user) {
@@ -221,7 +277,7 @@ const Profile = () => {
               Profile Settings
             </h1>
             <p className="mt-2 text-lg text-gray-600">
-              Manage your account information and preferences
+              Manage your account information and veteran status
             </p>
           </div>
           
@@ -239,6 +295,13 @@ const Profile = () => {
 
       <form onSubmit={handleSubmit}>
         <div className="space-y-6">
+          {/* Display general server errors */}
+          {serverErrors.non_field_errors && (
+            <div className="bg-red-50 border border-red-200 rounded-md p-4">
+              <p className="text-sm text-red-600">{serverErrors.non_field_errors}</p>
+            </div>
+          )}
+
           {/* Personal Information */}
           <div className="bg-white rounded-lg shadow-md p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
@@ -256,11 +319,11 @@ const Profile = () => {
                   onChange={handleInputChange}
                   disabled={!isEditing}
                   className={`form-input ${!isEditing ? 'bg-gray-50' : ''} ${
-                    errors.first_name ? 'border-red-300' : ''
+                    getFieldError('first_name') ? 'border-red-300' : ''
                   }`}
                 />
-                {errors.first_name && (
-                  <p className="mt-1 text-sm text-red-600">{errors.first_name}</p>
+                {getFieldError('first_name') && (
+                  <p className="mt-1 text-sm text-red-600">{getFieldError('first_name')}</p>
                 )}
               </div>
 
@@ -273,15 +336,15 @@ const Profile = () => {
                   onChange={handleInputChange}
                   disabled={!isEditing}
                   className={`form-input ${!isEditing ? 'bg-gray-50' : ''} ${
-                    errors.last_name ? 'border-red-300' : ''
+                    getFieldError('last_name') ? 'border-red-300' : ''
                   }`}
                 />
-                {errors.last_name && (
-                  <p className="mt-1 text-sm text-red-600">{errors.last_name}</p>
+                {getFieldError('last_name') && (
+                  <p className="mt-1 text-sm text-red-600">{getFieldError('last_name')}</p>
                 )}
               </div>
 
-              <div>
+              <div className="md:col-span-2">
                 <label className="form-label">Email Address *</label>
                 <input
                   type="email"
@@ -290,152 +353,165 @@ const Profile = () => {
                   onChange={handleInputChange}
                   disabled={!isEditing}
                   className={`form-input ${!isEditing ? 'bg-gray-50' : ''} ${
-                    errors.email ? 'border-red-300' : ''
+                    getFieldError('email') ? 'border-red-300' : ''
                   }`}
                 />
-                {errors.email && (
-                  <p className="mt-1 text-sm text-red-600">{errors.email}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="form-label">Phone Number</label>
-                <input
-                  type="tel"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                  disabled={!isEditing}
-                  placeholder="(555) 123-4567"
-                  className={`form-input ${!isEditing ? 'bg-gray-50' : ''} ${
-                    errors.phone ? 'border-red-300' : ''
-                  }`}
-                />
-                {errors.phone && (
-                  <p className="mt-1 text-sm text-red-600">{errors.phone}</p>
+                {getFieldError('email') && (
+                  <p className="mt-1 text-sm text-red-600">{getFieldError('email')}</p>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Address Information */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-              <MapPin className="mr-2 h-5 w-5 text-maine-600" />
-              Address Information
-            </h2>
-            
-            <div className="grid grid-cols-1 gap-6">
-              <div>
-                <label className="form-label">Street Address</label>
-                <input
-                  type="text"
-                  name="address"
-                  value={formData.address}
-                  onChange={handleInputChange}
-                  disabled={!isEditing}
-                  className={`form-input ${!isEditing ? 'bg-gray-50' : ''}`}
-                  placeholder="123 Main Street"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                  <label className="form-label">City</label>
-                  <input
-                    type="text"
-                    name="city"
-                    value={formData.city}
-                    onChange={handleInputChange}
-                    disabled={!isEditing}
-                    className={`form-input ${!isEditing ? 'bg-gray-50' : ''}`}
-                  />
-                </div>
-
-                <div>
-                  <label className="form-label">State</label>
-                  <input
-                    type="text"
-                    name="state"
-                    value={formData.state}
-                    onChange={handleInputChange}
-                    disabled={!isEditing}
-                    className={`form-input ${!isEditing ? 'bg-gray-50' : ''}`}
-                  />
-                </div>
-
-                <div>
-                  <label className="form-label">ZIP Code</label>
-                  <input
-                    type="text"
-                    name="zip_code"
-                    value={formData.zip_code}
-                    onChange={handleInputChange}
-                    disabled={!isEditing}
-                    className={`form-input ${!isEditing ? 'bg-gray-50' : ''}`}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Military Information */}
+          {/* Veteran Information - Matches Django UserProfile model exactly */}
           <div className="bg-white rounded-lg shadow-md p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
               <Shield className="mr-2 h-5 w-5 text-maine-600" />
-              Military Information
+              Veteran Information
             </h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div>
-                <label className="form-label">Military Branch</label>
-                <select
-                  name="military_branch"
-                  value={formData.military_branch}
-                  onChange={handleInputChange}
-                  disabled={!isEditing}
-                  className={`form-input ${!isEditing ? 'bg-gray-50' : ''}`}
-                >
-                  <option value="">Select branch</option>
-                  {militaryBranches.map(branch => (
-                    <option key={branch} value={branch}>{branch}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="form-label">Years of Service</label>
+            <div className="space-y-6">
+              {/* Veteran Status Checkbox */}
+              <div className="flex items-center">
                 <input
-                  type="number"
-                  name="service_years"
-                  value={formData.service_years}
+                  id="is_veteran"
+                  name="is_veteran"
+                  type="checkbox"
+                  checked={formData.is_veteran}
                   onChange={handleInputChange}
                   disabled={!isEditing}
-                  min="0"
-                  max="50"
-                  className={`form-input ${!isEditing ? 'bg-gray-50' : ''}`}
+                  className="h-4 w-4 text-maine-600 focus:ring-maine-500 border-gray-300 rounded"
                 />
+                <label htmlFor="is_veteran" className="ml-2 text-sm font-medium text-gray-700">
+                  I am a veteran
+                </label>
               </div>
 
-              <div>
-                <label className="form-label">Current Status</label>
-                <select
-                  name="veteran_status"
-                  value={formData.veteran_status}
-                  onChange={handleInputChange}
-                  disabled={!isEditing}
-                  className={`form-input ${!isEditing ? 'bg-gray-50' : ''}`}
-                >
-                  <option value="">Select status</option>
-                  {veteranStatuses.map(status => (
-                    <option key={status} value={status}>{status}</option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Service Branch - Matches Django choices exactly */}
+                <div>
+                  <label className="form-label">Military Branch</label>
+                  <select
+                    name="service_branch"
+                    value={formData.service_branch}
+                    onChange={handleInputChange}
+                    disabled={!isEditing || !formData.is_veteran}
+                    className={`form-input ${!isEditing || !formData.is_veteran ? 'bg-gray-50' : ''} ${
+                      getFieldError('service_branch') ? 'border-red-300' : ''
+                    }`}
+                  >
+                    {militaryBranches.map(branch => (
+                      <option key={branch.value} value={branch.value}>
+                        {branch.label}
+                      </option>
+                    ))}
+                  </select>
+                  {getFieldError('service_branch') && (
+                    <p className="mt-1 text-sm text-red-600">{getFieldError('service_branch')}</p>
+                  )}
+                </div>
+
+                {/* Placeholder for future current_state field */}
+                <div>
+                  <label className="form-label">Current State</label>
+                  <input
+                    type="text"
+                    value="To be implemented with state selector"
+                    disabled
+                    className="form-input bg-gray-50 text-gray-400"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    State selector will be implemented when states data is available
+                  </p>
+                </div>
+              </div>
+
+              {/* Military Retirement Benefits */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium text-gray-900">Military Benefits</h3>
+                
+                <div className="flex items-center">
+                  <input
+                    id="receives_military_retirement"
+                    name="receives_military_retirement"
+                    type="checkbox"
+                    checked={formData.receives_military_retirement}
+                    onChange={handleInputChange}
+                    disabled={!isEditing || !formData.is_veteran}
+                    className="h-4 w-4 text-maine-600 focus:ring-maine-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="receives_military_retirement" className="ml-2 text-sm text-gray-700">
+                    I receive military retirement income
+                  </label>
+                </div>
+
+                <div className="flex items-start space-x-4">
+                  <div className="flex items-center">
+                    <input
+                      id="receives_disability_compensation"
+                      name="receives_disability_compensation"
+                      type="checkbox"
+                      checked={formData.receives_disability_compensation}
+                      onChange={handleInputChange}
+                      disabled={!isEditing || !formData.is_veteran}
+                      className="h-4 w-4 text-maine-600 focus:ring-maine-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="receives_disability_compensation" className="ml-2 text-sm text-gray-700">
+                      I receive VA disability compensation
+                    </label>
+                  </div>
+
+                  {formData.receives_disability_compensation && (
+                    <div className="flex-1 max-w-xs">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Disability Rating (%)
+                      </label>
+                      <input
+                        type="number"
+                        name="disability_rating"
+                        value={formData.disability_rating}
+                        onChange={handleInputChange}
+                        disabled={!isEditing}
+                        min="0"
+                        max="100"
+                        className={`form-input ${!isEditing ? 'bg-gray-50' : ''} ${
+                          getFieldError('disability_rating') ? 'border-red-300' : ''
+                        }`}
+                        placeholder="0-100"
+                      />
+                      {getFieldError('disability_rating') && (
+                        <p className="mt-1 text-sm text-red-600">{getFieldError('disability_rating')}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Password Section */}
+          {/* Contact Information - Future Implementation */}
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
+              <MapPin className="mr-2 h-5 w-5 text-maine-600" />
+              Contact Information
+            </h2>
+            
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <Calendar className="h-5 w-5 text-blue-500 mt-0.5" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-blue-800">
+                    <strong>Coming Soon:</strong> Contact information fields (phone, address, etc.) 
+                    will be available once the backend UserProfile model is extended to include these fields.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Password Change Section */}
           {isEditing && (
             <div className="bg-white rounded-lg shadow-md p-6">
               <div className="flex items-center justify-between mb-6">
@@ -461,10 +537,10 @@ const Profile = () => {
                       name="current_password"
                       value={formData.current_password}
                       onChange={handleInputChange}
-                      className={`form-input ${errors.current_password ? 'border-red-300' : ''}`}
+                      className={`form-input ${getFieldError('current_password') ? 'border-red-300' : ''}`}
                     />
-                    {errors.current_password && (
-                      <p className="mt-1 text-sm text-red-600">{errors.current_password}</p>
+                    {getFieldError('current_password') && (
+                      <p className="mt-1 text-sm text-red-600">{getFieldError('current_password')}</p>
                     )}
                   </div>
 
@@ -475,10 +551,10 @@ const Profile = () => {
                       name="new_password"
                       value={formData.new_password}
                       onChange={handleInputChange}
-                      className={`form-input ${errors.new_password ? 'border-red-300' : ''}`}
+                      className={`form-input ${getFieldError('new_password') ? 'border-red-300' : ''}`}
                     />
-                    {errors.new_password && (
-                      <p className="mt-1 text-sm text-red-600">{errors.new_password}</p>
+                    {getFieldError('new_password') && (
+                      <p className="mt-1 text-sm text-red-600">{getFieldError('new_password')}</p>
                     )}
                   </div>
 
@@ -489,10 +565,10 @@ const Profile = () => {
                       name="confirm_password"
                       value={formData.confirm_password}
                       onChange={handleInputChange}
-                      className={`form-input ${errors.confirm_password ? 'border-red-300' : ''}`}
+                      className={`form-input ${getFieldError('confirm_password') ? 'border-red-300' : ''}`}
                     />
-                    {errors.confirm_password && (
-                      <p className="mt-1 text-sm text-red-600">{errors.confirm_password}</p>
+                    {getFieldError('confirm_password') && (
+                      <p className="mt-1 text-sm text-red-600">{getFieldError('confirm_password')}</p>
                     )}
                   </div>
                 </div>
@@ -519,7 +595,7 @@ const Profile = () => {
               </div>
 
               <div>
-                <label className="form-label">Last Updated</label>
+                <label className="form-label">Profile Last Updated</label>
                 <input
                   type="text"
                   value={profile?.updated_at ? new Date(profile.updated_at).toLocaleDateString() : 'Never'}

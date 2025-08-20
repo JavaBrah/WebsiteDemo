@@ -1,6 +1,3 @@
-from django.shortcuts import render
-
-# Create your views here.
 # calculations/views.py
 
 from rest_framework import generics, status, permissions
@@ -10,6 +7,8 @@ from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
+from django.db import models  # ADDED: Missing import for models.Avg
+from django.shortcuts import get_object_or_404  # ADDED: Missing import
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 
@@ -146,7 +145,8 @@ class CostCalculationDuplicateView(generics.CreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
     
     def create(self, request, *args, **kwargs):
-        original_calculation = generics.get_object_or_404(
+        # FIXED: Use proper get_object_or_404 import
+        original_calculation = get_object_or_404(
             CostCalculation.objects.filter(user=request.user),
             pk=kwargs['pk']
         )
@@ -181,7 +181,8 @@ class CalculationNoteListCreateView(generics.ListCreateAPIView):
     
     def perform_create(self, serializer):
         calculation_id = self.kwargs['calculation_pk']
-        calculation = generics.get_object_or_404(
+        # FIXED: Use proper get_object_or_404 import
+        calculation = get_object_or_404(
             CostCalculation.objects.filter(user=self.request.user),
             pk=calculation_id
         )
@@ -211,7 +212,7 @@ def user_dashboard_data(request):
     total_calculations = calculations.count()
     favorite_calculations = calculations.filter(is_favorite=True).count()
     
-    # Average savings
+    # FIXED: Use proper models.Avg import
     avg_monthly_savings = calculations.aggregate(
         models.Avg('total_monthly_savings')
     )['total_monthly_savings__avg'] or 0
@@ -237,7 +238,8 @@ def user_dashboard_data(request):
 @permission_classes([permissions.IsAuthenticated])
 def toggle_calculation_favorite(request, pk):
     """Toggle the favorite status of a calculation"""
-    calculation = generics.get_object_or_404(
+    # FIXED: Use proper get_object_or_404 import
+    calculation = get_object_or_404(
         CostCalculation.objects.filter(user=request.user),
         pk=pk
     )
