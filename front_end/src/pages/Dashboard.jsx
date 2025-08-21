@@ -1,4 +1,4 @@
-// src/pages/Dashboard.jsx - Enhanced with delete functionality
+// src/pages/Dashboard.jsx - Enhanced with delete functionality and detailed comments
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -22,11 +22,13 @@ import LoadingSpinner from '../components/LoadingSpinner'
 import { useAuth } from '../context/AuthContext'
 
 const Dashboard = () => {
-  const { user } = useAuth()
-  const queryClient = useQueryClient()
-  const [deleteConfirmId, setDeleteConfirmId] = useState(null)
+  // ===== HOOKS AND STATE MANAGEMENT =====
+  const { user } = useAuth() // Get current user from global authentication context
+  const queryClient = useQueryClient() // For invalidating queries after mutations
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null) // Track which calculation to delete
 
-  // Fetch dashboard data using correct React Query v5 syntax
+  // ===== DATA FETCHING =====
+  // Fetch dashboard summary statistics (total calculations, averages, etc.)
   const { 
     data: dashboardData, 
     isLoading: dashboardLoading, 
@@ -34,10 +36,10 @@ const Dashboard = () => {
   } = useQuery({
     queryKey: ['dashboard'],
     queryFn: () => dashboardAPI.getDashboardData(),
-    select: (response) => response.data
+    select: (response) => response.data // Extract data from axios response
   })
 
-  // Fetch recent calculations using correct React Query v5 syntax
+  // Fetch recent calculations for display (limit to 5 most recent)
   const { 
     data: calculations, 
     isLoading: calculationsLoading, 
@@ -45,18 +47,20 @@ const Dashboard = () => {
   } = useQuery({
     queryKey: ['calculations', { limit: 5 }],
     queryFn: () => calculationsAPI.getAll({ limit: 5, ordering: '-created_at' }),
-    select: (response) => response.data.results || response.data
+    select: (response) => response.data.results || response.data // Handle paginated vs direct array response
   })
 
-  // Delete calculation mutation
+  // ===== MUTATION FUNCTIONS (Actions that modify data) =====
+  
+  // Delete calculation mutation - removes a calculation from the database
   const deleteCalculationMutation = useMutation({
-    mutationFn: (id) => calculationsAPI.delete(id),
+    mutationFn: (id) => calculationsAPI.delete(id), // API call to delete
     onSuccess: (_, deletedId) => {
       toast.success('Calculation deleted successfully')
-      // Invalidate and refetch both queries
+      // Invalidate queries to trigger refetch of updated data
       queryClient.invalidateQueries({ queryKey: ['calculations'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      setDeleteConfirmId(null)
+      setDeleteConfirmId(null) // Close confirmation modal
     },
     onError: (error) => {
       console.error('Delete error:', error)
@@ -65,11 +69,12 @@ const Dashboard = () => {
     }
   })
 
-  // Duplicate calculation mutation
+  // Duplicate calculation mutation - creates a copy of an existing calculation
   const duplicateCalculationMutation = useMutation({
     mutationFn: (id) => calculationsAPI.duplicate(id),
     onSuccess: (response) => {
       toast.success('Calculation duplicated successfully')
+      // Refresh data to show the new duplicate
       queryClient.invalidateQueries({ queryKey: ['calculations'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
     },
@@ -79,11 +84,12 @@ const Dashboard = () => {
     }
   })
 
-  // Toggle favorite mutation
+  // Toggle favorite status mutation - marks/unmarks calculations as favorites
   const toggleFavoriteMutation = useMutation({
     mutationFn: (id) => calculationsAPI.toggleFavorite(id),
     onSuccess: (response) => {
       toast.success(response.data.message || 'Favorite status updated')
+      // Refresh data to show updated favorite status
       queryClient.invalidateQueries({ queryKey: ['calculations'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
     },
@@ -93,28 +99,37 @@ const Dashboard = () => {
     }
   })
 
+  // ===== EVENT HANDLERS =====
+  
+  // Show delete confirmation modal
   const handleDelete = (id) => {
     setDeleteConfirmId(id)
   }
 
+  // Confirm deletion and execute
   const confirmDelete = () => {
     if (deleteConfirmId) {
       deleteCalculationMutation.mutate(deleteConfirmId)
     }
   }
 
+  // Cancel deletion and close modal
   const cancelDelete = () => {
     setDeleteConfirmId(null)
   }
 
+  // Trigger duplication
   const handleDuplicate = (id) => {
     duplicateCalculationMutation.mutate(id)
   }
 
+  // Toggle favorite status
   const handleToggleFavorite = (id) => {
     toggleFavoriteMutation.mutate(id)
   }
 
+  // ===== LOADING STATE =====
+  // Show loading spinner while data is being fetched
   if (dashboardLoading || calculationsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -123,6 +138,8 @@ const Dashboard = () => {
     )
   }
 
+  // ===== ERROR STATE =====
+  // Show error message if data fetching fails
   if (dashboardError || calculationsError) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -141,9 +158,12 @@ const Dashboard = () => {
     )
   }
 
+  // ===== MAIN DASHBOARD RENDER =====
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Delete Confirmation Modal */}
+      
+      {/* ===== DELETE CONFIRMATION MODAL ===== */}
+      {/* Only shows when deleteConfirmId is set (user clicked delete button) */}
       {deleteConfirmId && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-mx-4">
@@ -155,6 +175,7 @@ const Dashboard = () => {
               Are you sure you want to delete this calculation? This action cannot be undone.
             </p>
             <div className="flex justify-end space-x-3">
+              {/* Cancel button */}
               <button
                 onClick={cancelDelete}
                 className="btn-secondary"
@@ -162,6 +183,7 @@ const Dashboard = () => {
               >
                 Cancel
               </button>
+              {/* Confirm delete button */}
               <button
                 onClick={confirmDelete}
                 className="btn-danger flex items-center"
@@ -179,10 +201,12 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Header */}
+      {/* ===== HEADER SECTION ===== */}
+      {/* Welcome message and main action button */}
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
+            {/* Personalized greeting using user's first name or fallback */}
             <h1 className="text-3xl font-bold text-gray-900">
               Welcome back, {user?.first_name || 'Veteran'}!
             </h1>
@@ -190,6 +214,7 @@ const Dashboard = () => {
               Here's an overview of your cost calculations and Maine move planning.
             </p>
           </div>
+          {/* Primary call-to-action button */}
           <Link
             to="/calculator"
             className="btn-primary flex items-center"
@@ -200,8 +225,11 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Stats Grid */}
+      {/* ===== STATISTICS GRID ===== */}
+      {/* 4-column grid showing key metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        
+        {/* Total Calculations Card */}
         <div className="bg-white rounded-lg shadow-md p-6">
           <div className="flex items-center">
             <div className="flex-shrink-0">
@@ -210,12 +238,14 @@ const Dashboard = () => {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500">Total Calculations</p>
               <p className="text-2xl font-bold text-gray-900">
+                {/* Use dashboard data if available, fallback to calculations array length */}
                 {dashboardData?.total_calculations || calculations?.length || 0}
               </p>
             </div>
           </div>
         </div>
 
+        {/* Average Savings Card */}
         <div className="bg-white rounded-lg shadow-md p-6">
           <div className="flex items-center">
             <div className="flex-shrink-0">
@@ -230,6 +260,7 @@ const Dashboard = () => {
           </div>
         </div>
 
+        {/* Favorites Count Card */}
         <div className="bg-white rounded-lg shadow-md p-6">
           <div className="flex items-center">
             <div className="flex-shrink-0">
@@ -244,6 +275,7 @@ const Dashboard = () => {
           </div>
         </div>
 
+        {/* This Month's Activity Card */}
         <div className="bg-white rounded-lg shadow-md p-6">
           <div className="flex items-center">
             <div className="flex-shrink-0">
@@ -259,11 +291,14 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Recent Calculations */}
+      {/* ===== RECENT CALCULATIONS SECTION ===== */}
       <div className="bg-white rounded-lg shadow-md">
+        
+        {/* Section Header */}
         <div className="px-6 py-4 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-gray-900">Recent Calculations</h2>
+            {/* Link to view all calculations (goes to calculator page) */}
             <Link
               to="/calculator"
               className="text-maine-600 hover:text-maine-700 text-sm font-medium"
@@ -273,56 +308,73 @@ const Dashboard = () => {
           </div>
         </div>
 
+        {/* Calculations List or Empty State */}
         {calculations && calculations.length > 0 ? (
+          /* ===== CALCULATIONS LIST ===== */
           <div className="divide-y divide-gray-200">
             {calculations.map((calculation) => (
               <div key={calculation.id} className="px-6 py-4">
                 <div className="flex items-center justify-between">
+                  
+                  {/* ===== LEFT SIDE: Calculation Info ===== */}
                   <div className="flex-1">
                     <div className="flex items-center">
+                      {/* Calculation name */}
                       <h3 className="text-lg font-medium text-gray-900">
                         {calculation.calculation_name}
                       </h3>
+                      {/* Favorite star indicator */}
                       {calculation.is_favorite && (
                         <Star className="ml-2 h-4 w-4 text-yellow-500 fill-current" />
                       )}
                     </div>
+                    {/* Calculation metadata */}
                     <div className="mt-1 flex items-center text-sm text-gray-500">
                       <span>
+                        {/* Show origin state -> Maine */}
                         {calculation.origin_state?.state_name || 'Unknown'} → Maine
                       </span>
                       <span className="mx-2">•</span>
                       <span>
+                        {/* Creation date */}
                         Created {new Date(calculation.created_at).toLocaleDateString()}
                       </span>
                     </div>
                   </div>
 
+                  {/* ===== RIGHT SIDE: Savings Info and Action Buttons ===== */}
                   <div className="flex items-center space-x-4">
+                    
+                    {/* Savings/Cost Display */}
                     {calculation.total_monthly_savings !== null && (
                       <div className="text-right">
                         <div className="flex items-center">
+                          {/* Show green down arrow for savings, red up arrow for increased costs */}
                           {calculation.total_monthly_savings >= 0 ? (
                             <TrendingDown className="h-4 w-4 text-green-500 mr-1" />
                           ) : (
                             <TrendingUp className="h-4 w-4 text-red-500 mr-1" />
                           )}
+                          {/* Amount (always show as positive number) */}
                           <span className={`font-medium ${
                             calculation.total_monthly_savings >= 0 
-                              ? 'text-green-600' 
-                              : 'text-red-600'
+                              ? 'text-green-600'  // Green for savings
+                              : 'text-red-600'    // Red for increased costs
                           }`}>
                             ${Math.abs(calculation.total_monthly_savings).toLocaleString()}
                           </span>
                         </div>
+                        {/* Label indicating whether it's savings or increase */}
                         <p className="text-xs text-gray-500">
                           {calculation.total_monthly_savings >= 0 ? 'savings' : 'increase'} monthly
                         </p>
                       </div>
                     )}
 
+                    {/* ===== ACTION BUTTONS ===== */}
                     <div className="flex items-center space-x-2">
-                      {/* Favorite Toggle */}
+                      
+                      {/* Favorite Toggle Button */}
                       <button
                         onClick={() => handleToggleFavorite(calculation.id)}
                         className={`p-2 rounded-full hover:bg-gray-100 ${
@@ -334,7 +386,7 @@ const Dashboard = () => {
                         <Star className={`h-4 w-4 ${calculation.is_favorite ? 'fill-current' : ''}`} />
                       </button>
 
-                      {/* Edit */}
+                      {/* Edit Button (Link to calculator with calculation ID) */}
                       <Link
                         to={`/calculator/${calculation.id}`}
                         className="p-2 rounded-full text-gray-400 hover:text-maine-600 hover:bg-gray-100"
@@ -343,7 +395,7 @@ const Dashboard = () => {
                         <Edit className="h-4 w-4" />
                       </Link>
 
-                      {/* Duplicate */}
+                      {/* Duplicate Button */}
                       <button
                         onClick={() => handleDuplicate(calculation.id)}
                         className="p-2 rounded-full text-gray-400 hover:text-blue-600 hover:bg-gray-100"
@@ -353,7 +405,7 @@ const Dashboard = () => {
                         <Copy className="h-4 w-4" />
                       </button>
 
-                      {/* Delete */}
+                      {/* Delete Button */}
                       <button
                         onClick={() => handleDelete(calculation.id)}
                         className="p-2 rounded-full text-gray-400 hover:text-red-600 hover:bg-gray-100"
@@ -369,6 +421,8 @@ const Dashboard = () => {
             ))}
           </div>
         ) : (
+          /* ===== EMPTY STATE ===== */
+          /* Shows when user has no calculations yet */
           <div className="px-6 py-12 text-center">
             <Calculator className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">No calculations yet</h3>
@@ -388,8 +442,11 @@ const Dashboard = () => {
         )}
       </div>
 
-      {/* Quick Actions */}
+      {/* ===== QUICK ACTIONS SECTION ===== */}
+      {/* 3-column grid of action cards at bottom */}
       <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        {/* New Calculation Card */}
         <Link
           to="/calculator"
           className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow group"
@@ -403,6 +460,7 @@ const Dashboard = () => {
           </div>
         </Link>
 
+        {/* Learn More Card */}
         <Link
           to="/about"
           className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow group"
@@ -416,6 +474,7 @@ const Dashboard = () => {
           </div>
         </Link>
 
+        {/* Get Help Card */}
         <Link
           to="/contact"
           className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow group"

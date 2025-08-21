@@ -1,4 +1,4 @@
-// src/utils/api.js - Updated with delete and duplicate functionality
+// src/utils/api.js
 import axios from 'axios'
 
 const api = axios.create({
